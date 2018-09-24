@@ -79,7 +79,7 @@
 
 
 var map_osm = L.tileLayer('//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '',
+  attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
   maxZoom: 22,
   maxNativeZoom: 18,
 });
