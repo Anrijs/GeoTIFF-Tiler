@@ -11,9 +11,10 @@
 
   $body  = "<h1>Maps</h1><hr class=\"alt\">";
 
-  $maps = array_diff(scandir($_R["maps"]), array('..', '.'));
+  $maps = array_reverse(array_diff(scandir($_R["maps"]), array('..', '.')));
 
   $body .= '<table class="table table-striped table-sm"><tr><th>#</th><th>Name</th><th>uid</th><th>Date</th><th>Size</th><th></th></tr>';
+  $pos = 1;
   foreach ($maps as $map) {
     $name = file_get_contents($_R["maps"] . $map . "/name");
     $fname = $map;
@@ -34,7 +35,7 @@
 
     $img64a = '<a href="' . $_R["maps"].$map."/".$img512.'"><img style="height:64px;" src="'.$_R["maps"].$map."/".$img64.'"></a>';
 
-    $body .= '<tr><td>1</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$fname."</small>".'</td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
+    $body .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$fname."</small>".'</td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
     $body .= "\n" . '<a href="maps.rm.php?uid='.$map.'" onclick="return confirm(\'Are you sure? Tiles will be still vissible in  layers.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n".'</td>';    
   }
   $body .= '</table>';
