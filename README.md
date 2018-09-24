@@ -17,10 +17,10 @@ Build docker:
 
 Run docker:
 `docker run -p <port>:80 -v $(pwd)/www:/var/www/html/ -it  geotiff-tiler`
-<port> is port which will be used to access web interface.
+\<port\> is port which will be used to access web interface.
 
 ## Usage
-Open localhost:<port> in web browser
+Open localhost:\<port\> in web browser
 
 Add new layer under **Layers** tab
 Upload new GeoTIFF or Ozi map map under **Maps** tab
