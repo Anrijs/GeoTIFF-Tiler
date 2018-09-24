@@ -37,4 +37,7 @@ ENV C_INCLUDE_PATH=/usr/include/gdal
 
 RUN pip install -r requirements.txt
 
+# ImageMagick policy
+COPY imagemagick.policy.xml /etc/ImageMagick-6/policy.xml
+
 ENTRYPOINT service apache2 start && service redis-server start && bash
