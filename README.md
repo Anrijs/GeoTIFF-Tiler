@@ -27,3 +27,13 @@ Upload new GeoTIFF or Ozi map map under **Maps** tab
 Add uploaded map to any layer
 Follow active jobs in **Dashboard** tab
 Preview map under **Map** tab
+
+## Screenshots
+### Map list
+![Map list](https://raw.githubusercontent.com/Anrijs/GeoTIFF-Tiler/master/docs/1.png)
+
+### Dashboard
+![Dashboard](https://raw.githubusercontent.com/Anrijs/GeoTIFF-Tiler/master/docs/2.png)
+
+### Map view with merged maps
+![Map view](https://raw.githubusercontent.com/Anrijs/GeoTIFF-Tiler/master/docs/3.gif)
