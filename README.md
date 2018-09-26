@@ -1,3 +1,4 @@
+
 # GeoTIFF Tiler
 Upload GeoTIFF images or Ozi calibrated maps and slice them to tiles.
 
@@ -20,17 +21,19 @@ Map layer tiles dir: `/var/www/html/layers`
 Temporary files dir: `/var/www/html/tmp`  
 
 ### Download from Docker hub
+Pull image `docker pull anrijs/geotiff-tiler`  
+Run it:
 ``` bash
-docker run anrijs/geotiff-tiler \
-    --name=geotiff-tiler \
+docker run -d --name=geotiff-tiler \
+    -p <port>:80
     -v </path/to/maps>:/var/www/html/maps \
     -v </path/to/layers>:/var/www/html/layers \
     -v </path/to/temp>:/var/www/html/tmp \
-    -p <port>:80
+    anrijs/geotiff-tiler
 ```
 ### or build Docker
-`docker build . -t geotiff-tiler`
-
+Build image: `docker build . -t geotiff-tiler`
+Run it:
 ``` bash
 docker run geotiff-tiler \
     --name=geotiff-tiler \
