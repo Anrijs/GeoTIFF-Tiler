@@ -9,6 +9,8 @@
 FROM php:7.0-apache
 
 COPY php.user.ini /usr/local/etc/php/conf.d/php.user.ini
+COPY www/ /var/www/html
+
 RUN a2enmod rewrite
 
 RUN apt-get update && apt-get -y install \
@@ -40,4 +42,12 @@ RUN pip install -r requirements.txt
 # ImageMagick policy
 COPY imagemagick.policy.xml /etc/ImageMagick-6/policy.xml
 
-ENTRYPOINT service apache2 start && service redis-server start && bash
+RUN service apache2 start
+
+CMD service redis-server start
+
+ENTRYPOINT []
+
+#ports and volumes
+EXPOSE 80
+VOLUME /var/www/html/maps /var/www/html/layers /var/www/html/tmp
