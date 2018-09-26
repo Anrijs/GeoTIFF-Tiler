@@ -23,9 +23,9 @@ Temporary files dir: `/var/www/html/tmp`
 ``` bash
 docker run anrijs/geotiff-tiler \
     --name=geotiff-tiler \
-    -v </path/to/maps>/www:/var/www/html/maps \
-    -v </path/to/layers>/www:/var/www/html/layers \
-    -v </path/to/temp>/www:/var/www/html/tmp \
+    -v </path/to/maps>:/var/www/html/maps \
+    -v </path/to/layers>:/var/www/html/layers \
+    -v </path/to/temp>:/var/www/html/tmp \
     -p <port>:80
 ```
 ### or build Docker
@@ -34,9 +34,9 @@ docker run anrijs/geotiff-tiler \
 ``` bash
 docker run geotiff-tiler \
     --name=geotiff-tiler \
-    -v </path/to/maps>/www:/var/www/html/maps \
-    -v </path/to/layers>/www:/var/www/html/layers \
-    -v </path/to/temp>/www:/var/www/html/tmp \
+    -v </path/to/maps>:/var/www/html/maps \
+    -v </path/to/layers>:/var/www/html/layers \
+    -v </path/to/temp>:/var/www/html/tmp \
     -p <port>:80
 ```
 
