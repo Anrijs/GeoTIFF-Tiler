@@ -42,12 +42,8 @@ RUN pip install -r requirements.txt
 # ImageMagick policy
 COPY imagemagick.policy.xml /etc/ImageMagick-6/policy.xml
 
-RUN service apache2 start
-
-CMD service redis-server start
-
-ENTRYPOINT []
-
 #ports and volumes
 EXPOSE 80
 VOLUME /var/www/html/maps /var/www/html/layers /var/www/html/tmp
+
+ENTRYPOINT  service apache2 start && nohup redis-server
