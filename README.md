@@ -35,12 +35,12 @@ docker run -d --name=geotiff-tiler \
 Build image: `docker build . -t geotiff-tiler`
 Run it:
 ``` bash
-docker run geotiff-tiler \
-    --name=geotiff-tiler \
+docker run \
+	-p <port>:80
     -v </path/to/maps>:/var/www/html/maps \
     -v </path/to/layers>:/var/www/html/layers \
     -v </path/to/temp>:/var/www/html/tmp \
-    -p <port>:80
+    -it geotiff-tiler
 ```
 
 ## Usage
