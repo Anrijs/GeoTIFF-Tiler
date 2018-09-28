@@ -1,5 +1,6 @@
 <?php
 include "config/config.php";
+include "lib/tifftools.php";
 
 function has_prefix($string, $prefix) {
     return ((substr($string, 0, strlen($prefix)) == $prefix) ? true : false);
@@ -78,25 +79,16 @@ if ($uploadOk == 0) {
         $cmd = "convert " . $target_file . " -resize \"512^>\" " . $target_file_512_png;
         shell_exec($cmd . ' > /dev/null 2>/dev/null &');
 
-        // GeoTIFF center
-        $cmd = "gdalinfo " . $target_file . " ";
-        $tiff_info = shell_exec($cmd . " 2>&1; echo $?");
+        // GeoTIFF info
+        $tiff_info = getGdalInfo($target_file);
+   
+        $coordfile = fopen($target_dir . "coord", "w");
+        fwrite($coordfile, $tiff_info["center"][0] . "," . $tiff_info["center"][1]);
+        fclose($coordfile);
 
-        $tiff_info = explode("\n", $tiff_info);
-        foreach ($tiff_info as $info) {
-            if (has_prefix($info, "Center")) {
-                $pt = explode("(", $info)[1];
-                $pt = explode(")", $pt)[0];
-                $pt = explode(",", $pt);
-
-                $lon =  $pt[0];
-                $lat =  $pt[1];
-
-                $coordfile = fopen($target_dir . "coord", "w");
-                fwrite($coordfile, $lat . "," . $lon);
-                fclose($coordfile);
-            }
-        }
+        $infofile = fopen($target_dir . "info", "w");
+        fwrite($infofile, $tiff_info["p"] . "," . $tiff_info["s"]); // preimeter, area
+        fclose($infofile);
 
         header("Location: maps.php");
     } else {
