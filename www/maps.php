@@ -36,6 +36,9 @@
 
     $img64a = '<a href="' . $_R["maps"].$map."/".$img512.'"><img style="height:64px;" src="'.$_R["maps"].$map."/".$img64.'"></a>';
 
+    $tifflnk = $_R["maps"].$map."/".$tifname;
+    $tiffdl = " <a href=\"". $tifflnk . "\">Download TIFF</a>";
+
     $infofile = $_R["maps"] . $map . "/info";
     if (!file_exists($infofile)) {
       // generate tiff info
@@ -60,8 +63,10 @@
 
     $tiffinfo = "<small>S: ${t_s}</small><br><small>P: ${t_p}</small>";
 
-    $body .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$fname."</small>".'</td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
-    $body .= "\n" . '<a href="maps.rm.php?uid='.$map.'" onclick="return confirm(\'Are you sure? Tiles will be still vissible in  layers.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n".'</td>';    
+    $body .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$fname.$tiffdl."</small>".'</td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
+    $body .= "\n" . '<a href="maps.rm.php?uid='.$map.'" onclick="return confirm(\'Are you sure? Tiles will be still vissible in  layers.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n";
+
+    $body .= '</td>';    
   }
   $body .= '</table>';
   $body .= '<div class="float-right"><a href="maps.add.php" class="btn btn-info">Add map</a></div>';
