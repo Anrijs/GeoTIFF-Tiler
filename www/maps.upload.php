@@ -18,6 +18,10 @@ $target_dir = $target_dir . $dir . "/";
 $fname = basename($_FILES["fileToUpload"]["name"]);
 $mapname = $_POST['mapName'];
 
+if (strlen(trim($mapname)) == 0) {
+    $mapname = $fname;
+}
+
 $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
 
 

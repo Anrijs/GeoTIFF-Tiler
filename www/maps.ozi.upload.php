@@ -64,6 +64,10 @@ $target_dir = $_R["maps"] . $dir . "/";
 
 $mapname = $_POST['mapName'];
 
+if (strlen(trim($mapname)) == 0) {
+    $mapname = $tifFname;
+}
+
 // make map directory
 if(mkdir($target_dir) == 0) {
     echo "Failed to upload map. Maps directory (".$_R["maps"].") not writeable.";
