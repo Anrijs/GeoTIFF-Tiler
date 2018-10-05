@@ -22,6 +22,10 @@
     return $load[0];
   }
 
+  function cmp($a, $b) {
+    return strcmp($a["id"], $b["id"]);
+  }
+
   $response = array();
   $response["cpu"] = get_server_cpu_usage();
   $response["mem"] = get_server_memory_usage();
@@ -46,7 +50,9 @@
     $procs[] = $proc;
   }
 
-  $response["proc"] = $procs;
+  usort($procs, "cmp");
+
+  $procs = $response["proc"] = $procs;
 
   header('Content-Type: application/json');
   echo json_encode($response);
