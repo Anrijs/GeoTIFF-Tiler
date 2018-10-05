@@ -21,18 +21,20 @@
       var pactive = 0;
 
       $('#procs').find('tr:gt(0)').remove();
+      $('#completeprocs').find('tr:gt(0)').remove();
       for(var i=0;i<proc.length;i++) {
         var p = proc[i];
         if(p['active'] != '0') {
-          if(pactive == 0) {
-            $('#noactive').hide();
-          }
           pactive++;
           $('#procs tr:last').after('<tr><td>'+proc[i]['id']+'</td><td>'+p['name']+'</td><td>'+p['status']+'</td></tr>');
+        } else {
+          $('#completeprocs tr:first').after('<tr><td>'+proc[i]['id']+'</td><td>'+p['name']+'</td><td>'+p['status']+'</td></tr>');
         }
       }
       if(pactive==0) {
         $('#noactive').show();
+      } else {
+        $('#noactive').hide();
       }
 
       $('#cpu_num').text(cpu + '%');
@@ -49,10 +51,14 @@
   });
   </script>";
 
-  $body .= "<hr class=\"alt\"><h2> Active jobs</h2>";
+  $body .= "<hr class=\"alt\"><h2>Active jobs</h2>";
   $body .= '<table id="procs" class="table table-striped table-sm"> <tr><th>#</th><th>Name</th><th>Status</th></tr>';
   $body .= '</table>';
   $body .= '<p id="noactive">No active jobs</p>';
+
+  $body .= "<hr class=\"alt\" style=\"margin-top:64px;\"><h5>Complete jobs</h5>";
+  $body .= '<table id="completeprocs" class="table table-striped table-sm" style="font-size:0.8em;"> <tr><th>#</th><th>Name</th><th>Status</th></tr>';
+  $body .= '</table>';
 
   $contents["tab"] = "Dashboard";
   $contents["header"] = "";
