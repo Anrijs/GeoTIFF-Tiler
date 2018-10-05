@@ -6,6 +6,7 @@ from datetime import datetime
 import filecmp
 import shutil
 import time
+import traceback
 
 class bcolors:
     HEADER = '\033[95m'
@@ -20,6 +21,10 @@ class bcolors:
 debuglog = False
 printlog = True
 
+redis = False
+redis_proc = {"mapid": "md5sum-mapname.tif", "name": "Map direct name", "status": "Last known status. (slicing, merging, done)", "active": "1"}
+redis_procid = 0
+
 tlerstools = "/app/tilers-tools/tilers_tools/"
 
 def dlog(msg):
@@ -28,10 +33,14 @@ def dlog(msg):
         print msg
 
 def flog(msg):
-    if not (os.path.isdir("logs")):
-        os.mkdir("logs")
-    with open(os.path.join(os.getcwd(),"logs/geotiff.import.log"), "a") as myfile:
-        myfile.write(msg + "\r\n")
+    try:
+        if not (os.path.isdir("logs")):
+            os.mkdir("logs")
+        if os.path.isdir("logs"):
+            with open(os.path.join(os.getcwd(),"logs/geotiff.import.log"), "a") as myfile:
+                myfile.write(msg + "\r\n")
+    except Exception as ex:
+        traceback.print_exc()
     print msg
 
 def plog(msg):
@@ -61,13 +70,14 @@ def redisGetCurProcId(redis):
 def main(argv):
     global makeit
     global debuglog
+    global redis
+    global redis_procid
+    global redis_proc
 
     flog("")
     flog(bcolors.HEADER + bcolors.BOLD + bcolors.UNDERLINE + "Cut GeoTIFF tiles" + bcolors.ENDC)
     redis = False
-    redis_proc = {"mapid": "md5sum-mapname.tif", "name": "Map direct name", "status": "Last known status. (slicing, merging, done)", "active": "1"}
-    redis_procid = 0
-
+    
     tproc = 0
     tmerge = 0
     tnew = 0
@@ -122,7 +132,7 @@ def main(argv):
             while (redisGetCurProcId(redis) != "proc:"+redis_procid):
                 time.sleep(3)
 
-    zooms = "10,11,12,13,14,15,16,17,18,19,20,21"
+    zooms = "8,9,10,11,12,13,14,15,16,17,18,19,20,21"
 
     if "-z" in argv:
         idx = argv.index("-z")
@@ -163,17 +173,26 @@ def main(argv):
         importname = rreplace(tiff[1], ".tif", ".xyz", 1)
 
         flog( "Cutting tiles... " + tiff[0])
-        tiledir_ok = os.path.isdir(tiff[0].replace(".tif",".xyz"))
+        sliced_tile_dir = tiff[0].replace(".tif",".xyz")
+        tiledir_ok = os.path.isdir(sliced_tile_dir)
         if tiledir_ok:
             tiledir_ok = False
-            for idx, val in enumerate(os.walk(os.path.join(root_dir,tiff_dir,importname))):
-                if tiledir_ok:
-                    break
-                if len(val[2]) > 0:
-                    for png in val[2]:
-                        if png.endswith(".png"):
-                            tiledir_ok = True
-                            break
+            z_diff = ""
+            for z in zooms.split(","):
+                if not (os.path.isdir(os.path.join(sliced_tile_dir, z))):
+                    z_diff += z + ","
+            if (len(z_diff) > 0):
+                tiledir_ok = False
+                zooms = z_diff[:-1]
+            else:
+                for idx, val in enumerate(os.walk(os.path.join(root_dir,tiff_dir,importname))):
+                    if tiledir_ok:
+                        break
+                    if len(val[2]) > 0:
+                        for png in val[2]:
+                            if png.endswith(".png"):
+                                tiledir_ok = True
+                                break
 
         if not (tiledir_ok):
             os.system(tlerstools + 'tiler.py --cut --zoom=' + zooms + ' --release '+tiff[0]+' -p xyz')
@@ -185,7 +204,7 @@ def main(argv):
         redisSetStatus(redis,redis_procid,redis_proc,"Importing tiles... ("+str(tiffnum)+"/"+str(len(tiff_list))+")")
 
         # create zoom leval dirs
-        for x in xrange(10,22):
+        for x in xrange(0,24):
             if not (os.path.isdir(os.path.join(root_dir, tile_dir, str(x)))):
                 os.mkdir(os.path.join(root_dir, tile_dir, str(x)))
 
@@ -213,7 +232,7 @@ def main(argv):
                     # newpath = /tiff/mapname.xyz/z/x/y.png
                     # val[0] = mapname.xyz/z/y
     
-                    dstdirpath = val[0].replace(full_tiff_dir,full_tile_dir,1).replace(importname,"") # dirpath = /z/y
+                    dstdirpath = val[0].replace(full_tiff_dir,full_tile_dir,1).replace(importname,"").replace("//","/") # dirpath = /z/y
     
                     dlog("dirpath: " + dstdirpath)
     
@@ -260,10 +279,20 @@ def rreplace(s, old, new, occurrence):
 
 def move(src, dst):
     shutil.move(src, dst)
+
 if __name__ == "__main__":
     try:
-       main(sys.argv[1:])
-    except:
+        main(sys.argv[1:])
+    except Exception as ex:
+        for e in sys.exc_info():
+            print str(e)
+            print "<br>"
+
+        # cancel redis
+        if redis:
+            redis_proc["active"] = "0"
+            redisSetStatus(redis,redis_procid,redis_proc,"Failed. " + str(sys.exc_info()[1]))
+            flog("Redis stooped")
         flog("Unexcepted error: " + str(sys.exc_info()[0]))
         flog(str(sys.exc_info()[1]))    
 
