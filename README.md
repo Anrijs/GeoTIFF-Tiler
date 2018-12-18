@@ -4,6 +4,18 @@ Upload GeoTIFF images or Ozi calibrated maps and slice them to tiles.
 
 ## About
 This tool tool allows to easily create TMS tiles from calibrated map images and allows to merge multiple maps in one map (TMS tileset).
+It uses https://github.com/vss-devel/tilers-tools.git for tile slicing and custom script (www/import.py) for merging tilesets.
+
+## Running from CLI
+If You prefer to use CLI, You can use only `www/import.py` script. Make sure You have `gdal`, `imagemagick` and `tilers-tools` installed.
+
+Usage: 
+``` bash
+python import.py tiff_dir tile_dir [options]
+
+options:
+	-z    zoom levels (-z 10,11,12) 
+```
 
 ## Installation
 Make sure directories in `www` directory `maps`, `layers`, `logs` and `tmp` are writeable:
