@@ -13,7 +13,7 @@
     $zoom = file_get_contents($_R["layers"] . $layer . "/zoom");
     $maps = explode(";",file_get_contents($_R["layers"] . $layer . "/maps"));
 
-    $namehtml = $name . '<br><small>'.$layer.'/{z}/{x}/{y}.png</small>';
+    $namehtml = $name . '<br><small class="light-text">'.$layer.'/{z}/{x}/{y}.png</small>';
 
     $body .= '<tr><td>'.$no++.'</td><td>'.$namehtml.'</td><td>'.$zoom.'</td><td>'.(sizeof($maps)-1).'</td><td><a href="map.php#layers='.$name.'" class="btn btn-sm btn-info" style="margin-right:4px;">View layer</a><a href="#" class="btn btn-sm btn-danger">Delete</a></td>';
   }
