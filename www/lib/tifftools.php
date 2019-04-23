@@ -20,15 +20,71 @@
     }
 
     function getLatLon($info) {
+        $pt = explode("(", $info)[2];
+        $pt = explode(")", $pt)[0];
+        $pt = explode(",", $pt);
+
+        $lon =  trim($pt[0]);
+        $lat =  trim($pt[1]);
+
+        $lat_pts = explode("\"", $lat);
+        $lon_pts = explode("\"", $lon);
+
+	$hemi = $lon_pts[1];
+	$pole = $lat_pts[1];
+
+	$lat_pts = explode("d", $lat_pts[0]);
+	$lon_pts = explode("d", $lon_pts[0]);
+
+	$lat_dd = intval($lat_pts[0]);
+        $lon_dd = intval($lon_pts[0]);
+
+        $lat_pts = explode("'", $lat_pts[1]);
+        $lon_pts = explode("'", $lon_pts[1]);
+
+        $lat_mm = intval($lat_pts[0]);
+        $lon_mm = intval($lon_pts[0]);
+
+        $lat_ss = floatval($lat_pts[1]);
+        $lon_ss = floatval($lon_pts[1]);
+
+	$lat_mm += ($lat_ss/60);
+        $lon_mm += ($lon_ss/60);
+
+	$outlat = $lat + ($lat_mm/60);
+        $outlon = $lon + ($lon_mm/60);
+
+	if (pole == "S") {
+		$outlat = -$outlat;
+	}
+	if ($hemi == "W") {
+		$outlon = $outlon;
+	}
+
+        return array($outlat, $outlon);
+    }
+
+    function getPixelSize($info) {
         $pt = explode("(", $info)[1];
         $pt = explode(")", $pt)[0];
         $pt = explode(",", $pt);
 
-        $lon =  $pt[0];
-        $lat =  $pt[1];
+        $px1 =  $pt[0] * 100000;
+        $px2 =  $pt[1] * 100000;
 
-        return array($lat, $lon);
+        return array($px1, $px2);
     }
+
+    function getTiffSize($info) {
+        $pt = trim(str_replace("Size is", "", $info));
+        $pt = explode(",", $pt);
+
+        $x =  trim($pt[0]);
+        $y =  trim($pt[1]);
+
+        return array($x, $y);
+    }
+
 
     function getGdalInfo($filepath) {
         $cmd = "gdalinfo " . $filepath;
@@ -57,6 +113,14 @@
             if (has_prefix_t($info, "Lower Right")) {
                 $lr = getLatLon($info);
             }
+            if (has_prefix_t($info, "Pixel Size")) {
+                $tiff_info["px"] = getPixelSize($info);
+            }
+	    if (has_prefix_t($info, "Size is")) {
+                $tiff_info["size"] = getTiffSize($info);
+            }
+
+
         }
 
         $lxtop = haversineGreatCircleDistance($ul[0], $ul[1], $ur[0], $ur[1]);
@@ -73,10 +137,13 @@
 
         $s = ($a+$b+$c)/2;
 
-        $area1 = sqrt($s*($s-$a)*($s-$b)*($s-$c));
+        $area1 = sqrt(abs($s*($s-$a)*($s-$b)*($s-$c)));
 
         $s = ($a+$d+$c)/2;
-        $area2 = sqrt($s*($s-$a)*($s-$d)*($s-$c));
+
+        $area2 = sqrt(abs($s*($s-$a)*($s-$d)*($s-$c)));
+
+	$temp = $s*($s-$a)*($s-$b)*($s-$c);
 
         $area = $area1 + $area2;
         $p = $a + $b + $c + $d;
@@ -91,11 +158,26 @@
         $tiff_info["s"] = round($area); //sqm
         $tiff_info["p"] = round($p); //m
 
+        if (!array_key_exists("px",$tiff_info)) {
+            $x = 0;
+            $y = 0;
+
+	    if (array_key_exists("size", $tiff_info)) {
+                $x = $lxtop / $tiff_info["size"][0];
+                $y = $lyright / $tiff_info["size"][1];
+            }
+
+            $tiff_info["px"] = array($x,$y);
+	}
 
         return $tiff_info;
     }
 
     function genLocationFile($mapuid, $tiff_info) {
 
+    }
+
+    if (isset($_GET["test"])) {
+        print_r(getGdalInfo("/var/www/html/maps/" . $_GET["test"]));
     }
 ?>

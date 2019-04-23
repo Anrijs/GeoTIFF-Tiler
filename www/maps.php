@@ -3,10 +3,19 @@
   include "lib/filetools.php";
   include "lib/tifftools.php";
 
+  function regenerateInfo($target_dir, $target_file) {
+    // GeoTIFF info
+    $tiff_info = getGdalInfo($target_file);
+
+    $infofile = fopen($target_dir . "info", "w");
+    fwrite($infofile, $tiff_info["p"] . "," . $tiff_info["s"] . "," . $tiff_info["px"]); // preimeter, area
+    fclose($infofile);
+  }
+
   function endsWith($haystack, $needle) {
     $length = strlen($needle);
 
-    return $length === 0 || 
+    return $length === 0 ||
     (substr($haystack, -$length) === $needle);
   }
 
@@ -39,41 +48,62 @@
     $tifflnk = $_R["maps"].$map."/".$tifname;
     $tiffdl = " <a href=\"". $tifflnk . "\">Download TIFF</a>";
 
+    $infogen = 0;
+
     $infofile = $_R["maps"] . $map . "/info";
-    if (!file_exists($infofile)) {
+    $infook = file_exists($infofile);
+    if ($infook) {
+        $tiff_info = explode(",",file_get_contents($infofile));
+        if (sizeof($tiff_info) < 4) {
+		$infook = 0;
+                $infogen++;
+	}
+    }
+
+    if (!$infook) {
+       $infogen++;
       // generate tiff info
 
       // GeoTIFF info
       $tiff_info = getGdalInfo($_R["maps"] . $map . "/" . $tifname);
 
+      $tiff_info = array($tiff_info["p"], $tiff_info["s"], $tiff_info["px"][0], $tiff_info["px"][1]);
+
       $info = fopen($infofile, "w");
-      fwrite($info, $tiff_info["p"] . "," . $tiff_info["s"]); // perimeter, area
+      fwrite($info, implode(",", $tiff_info)); // perimeter, area, px size
       fclose($info);
+
     }
 
-    $tiff_info = explode(",",file_get_contents($infofile));
+    if (sizeof($tiff_info) < 3) {
+	// regenerate
+    }
+
     $t_p = (round($tiff_info[0])) . "m";
     $t_s = (round($tiff_info[1]));
+    $t_px = (round(($tiff_info[2]+$tiff_info[3])*50)/100);
 
-    if ($t_s > 100000) {
+    if ($t_s > 1000000) {
       $t_s = (round($t_s/10000)/100) . "km2";
+    } else if ($t_s > 10000) {
+      $t_s = (round($t_s/100)/100) . "ha";
     } else {
       $t_s = $t_s . "m2";
     }
 
-    $tiffinfo = "<small>S: ${t_s}</small><br><small>P: ${t_p}</small>";
+    $tiffinfo = "<small>S: ${t_s}</small><br><small>P: ${t_p}</small><br><small>{$t_px} px/cm</small>";
 
     $body .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$fname.$tiffdl."</small>".'</td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
     $body .= "\n" . '<a href="maps.rm.php?uid='.$map.'" onclick="return confirm(\'Are you sure? Tiles will be still vissible in  layers.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n";
 
-    $body .= '</td>';    
+    $body .= '</td>';
   }
   $body .= '</table>';
   $body .= '<div class="float-right"><a href="maps.add.php" class="btn btn-info">Add map</a></div>';
 
   $contents["tab"] = "Maps";
-  $contents["header"] = ""; 
-  $contents["script"] = ""; 
+  $contents["header"] = "";
+  $contents["script"] = "";
   $contents["body"] = $body;
   // draw template
   include 'templates/template.main.php';
