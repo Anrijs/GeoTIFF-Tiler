@@ -77,7 +77,8 @@ def main(argv):
     flog("")
     flog(bcolors.HEADER + bcolors.BOLD + bcolors.UNDERLINE + "Cut GeoTIFF tiles" + bcolors.ENDC)
     redis = False
-    
+    keepTiles = False
+
     tproc = 0
     tmerge = 0
     tnew = 0
@@ -99,10 +100,14 @@ def main(argv):
         flog( "")
         flog( "Options:" + bcolors.ENDC)
         flog( "  -z        Zoom levels (-z 10,11,12,15)" + bcolors.ENDC)
+        flog( "  -keep     Don't remove tiles in tiff directory" + bcolors.ENDC)
         return
 
     tiff_dir = argv[0]
     tile_dir = argv[1]
+
+    if "-keep" in argv:
+        keepTiles = True
 
     if "-d" in argv:
         debuglog = True
@@ -231,11 +236,11 @@ def main(argv):
 
                     # newpath = /tiff/mapname.xyz/z/x/y.png
                     # val[0] = mapname.xyz/z/y
-    
+
                     dstdirpath = val[0].replace(full_tiff_dir,full_tile_dir,1).replace(importname,"").replace("//","/") # dirpath = /z/y
-    
+
                     dlog("dirpath: " + dstdirpath)
-    
+
                     dstpath = newpath.replace(importdir,full_tile_dir,1).replace(importname,"").replace("//","/")
 
                     if(os.path.isfile(dstpath)): 
@@ -250,10 +255,11 @@ def main(argv):
                             #flog("cmd: " + 'convert -composite -background none ' + dstpath + ' ' + newpath + ' ' + tmp_path)
                             os.system('convert -composite -background none ' + dstpath + ' ' + newpath + ' ' + tmp_path)
                             plog(" moving " + tmp_path)
-                            move(tmp_path, dstpath)
+                            move(tmp_path, dstpath, False) # This one is temp file. Only move.
                             tmerge += 1
                         plog("remove " + newpath)
-                        os.remove(newpath)
+			if not keepTiles:
+                            os.remove(newpath)
                     else :
                         tnew += 1
                         plog(bcolors.OKGREEN + dstpath + " is new " + bcolors.ENDC)
@@ -261,7 +267,7 @@ def main(argv):
                             plog(bcolors.OKBLUE + val[0] + " new dir" + bcolors.ENDC)
                             os.mkdir(dstdirpath)
                         dlog("Mover: " + newpath + " -> " + dstpath)
-                        move(newpath,dstpath)
+                        move(newpath,dstpath, keepTiles)
                         
         # dont do cleanup. shutil.rmtree(importdir)
         tiffnum += 1
@@ -277,8 +283,11 @@ def rreplace(s, old, new, occurrence):
     li = s.rsplit(old, occurrence)
     return new.join(li)
 
-def move(src, dst):
-    shutil.move(src, dst)
+def move(src, dst, copy=False):
+    if (copy):
+	shutil.copy(src, dst)
+    else:
+        shutil.move(src, dst)
 
 if __name__ == "__main__":
     try:
