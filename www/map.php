@@ -87,7 +87,45 @@ var map_osm = L.tileLayer('//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 <?php
     include "config/config.php";
 
-	$overlays = array();
+    function endsWith($haystack, $needle) {
+      $length = strlen($needle);
+
+      return $length === 0 ||
+      (substr($haystack, -$length) === $needle);
+    }
+
+    $moverlays = array();
+    $maps = array_diff(scandir($_R["maps"]), array('..', '.'));
+    foreach ($maps as $l) {
+      if(!is_dir($_R["maps"] . $l)) {
+        continue;
+      }
+      $name = file_get_contents($_R["maps"] . $l . "/name");
+      $ol = array();
+      $ol["name"] = trim(preg_replace('/\s\s+/', ' ', $name));
+      $ol["id"] = $l;
+      $moverlays[] = $ol;
+
+      // get tiledir
+      $tiledir = "";
+
+      $dirfiles = array_diff(scandir($_R["maps"].$l), array('..', '.'));
+      foreach ($dirfiles as $f) {
+        if (endsWith($f,".xyz")) {
+          $tiledir = $f;
+          break;
+        }
+      }
+
+      echo "var map_" . $l . " =  L.tileLayer('/" . $_R["maps"] . $l . "/" . $tiledir . "/{z}/{x}/{y}.png', {\n";
+      echo "attribution: '<a href=\"https://github.com/Anrijs/GeoTIFF-Tiler\">GeoTIFF Tiler</a>',\n";
+      echo "  maxZoom: 22,\n";
+      echo "  maxNativeZoom: 22,\n";
+      echo "  detectRetina: false,\n";
+      echo "});\n";
+    }
+
+    $overlays = array();
     $layers = array_diff(scandir($_R["layers"]), array('..', '.'));
     foreach ($layers as $l) {
       if(!is_dir($_R["layers"] . $l)) {
@@ -106,8 +144,6 @@ var map_osm = L.tileLayer('//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       echo "  detectRetina: false,\n";
       echo "});\n";
     }
-
-
 ?>
 
 var baseMaps = {
@@ -115,11 +151,15 @@ var baseMaps = {
 };
 
 var overlayMaps = {
-	<?php
-	foreach (array_reverse($overlays) as $ol) {
-		echo '"'.$ol["name"].'": ' . "map_" . $ol['id'] . ",\n";
-	}
-	?>
+        <?php
+        foreach (array_reverse($overlays) as $ol) {
+                echo '"'.$ol["name"].'": ' . "map_" . $ol['id'] . ",\n";
+        }
+
+        foreach (array_reverse($moverlays) as $ol) {
+                echo '"'.$ol["name"].'": ' . "map_" . $ol['id'] . ",\n";
+        }
+        ?>
 };
 
     var map = L.map('map', {maxZoom:22}).setView([getUrlLatitude(), getUrlLongitude()], getUrlZoom());
