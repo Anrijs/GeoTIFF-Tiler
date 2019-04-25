@@ -31,12 +31,15 @@
     $fsize = dirsize($_R["maps"].$map);
 
     $tifname = "";
+    $tiledir = "";
 
     $dirfiles = array_diff(scandir($_R["maps"].$map), array('..', '.'));
     foreach ($dirfiles as $f) {
       if (endsWith($f,".tif")) {
         $tifname = $f;
-        break;
+      }
+      if (endsWith($f,".xyz")) {
+        $tiledir = $f;
       }
     }
 
@@ -91,9 +94,15 @@
       $t_s = $t_s . "m2";
     }
 
+    if (strlen($tiledir) < 1) {
+	$tiledir = $fname . " (not sliced)";
+    } else {
+        $tiledir = $fname . "/" . $tiledir . "/{z}/{x}/{y}.png";
+    }
+
     $tiffinfo = "<small>S: ${t_s}</small><br><small>P: ${t_p}</small><br><small>{$t_px} px/cm</small>";
 
-    $body .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$fname.$tiffdl."</small>".'</td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
+    $body .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$tiledir.'<br>'.$tiffdl.'</small></td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
     $body .= "\n" . '<a href="maps.rm.php?uid='.$map.'" onclick="return confirm(\'Are you sure? Tiles will be still vissible in  layers.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n";
 
     $body .= '</td>';
