@@ -183,9 +183,15 @@
   $paginationBody .= "<li class=\"page-item $activecl\"><a class=\"page-link\" href=\"?page=all\">All</a></li>";
   $paginationBody .= "</ul></nav>";
 
-  $body .= $paginationBody;
+  $pbar = "<div class=\"row\">";
+  
+  $pbar .= "<div class=\"col-lg-10 float-left\">" . $paginationBody . "</div>";
+  $pbar .= '<div class="col-lg-2 float-right"><a href="maps.add.php" class="btn btn-info">Add map</a></div>';
+  $pbar .= "</div>";
+
+  $body .= $pbar;
   $body .= $tableBody;
-  $body .= '<div class="float-right"><a href="maps.add.php" class="btn btn-info">Add map</a></div>';
+  $body .= $pbar;
 
   $contents["tab"] = "Maps";
   $contents["header"] = "";
