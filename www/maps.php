@@ -19,13 +19,42 @@
     (substr($haystack, -$length) === $needle);
   }
 
+  $page = 1;
+  if (isset($_GET["page"])) {
+    $page = $_GET["page"];
+    if ($page == "all") {
+      $page = -1;
+    } else if (is_int($page)) {
+      $page = intval($page);
+    }
+  }
+
+  $itemStart = 0;
+  $itemEnd = -1;
+
+  if ($page > 0) {
+    $itemStart = 15 * ($page - 1);
+    $itemEnd = 15 * $page;
+  }
+
   $body  = "<h1>Maps</h1><hr class=\"alt\">";
 
   $maps = array_reverse(array_diff(scandir($_R["maps"]), array('..', '.')));
 
-  $body .= '<table class="table table-striped table-sm"><tr><th>#</th><th>Name</th><th>uid</th><th>Date</th><th>Size</th><th>Info</th><th></th></tr>';
+  $tableBody .= '<table class="table table-striped table-sm"><tr><th>#</th><th>Name</th><th>uid</th><th>Date</th><th>Size</th><th>Info</th><th></th></tr>';
   $pos = 1;
+  
   foreach ($maps as $map) {
+    if ($itemEnd > 0 && $pos < $itemStart) {
+      $pos++;
+      continue;
+    }
+
+    if ($itemEnd > 0 && $pos > $itemEnd) {
+      $pos++;
+      continue;
+    }
+
     $name = file_get_contents($_R["maps"] . $map . "/name");
     $fname = $map;
     $fsize = dirsize($_R["maps"].$map);
@@ -33,14 +62,31 @@
     $tifname = "";
     $tiledir = "";
 
+    $hasoriginals = 0;
+    $originalimg = "";
+    $originalmap = "";
+
     $dirfiles = array_diff(scandir($_R["maps"].$map), array('..', '.'));
     foreach ($dirfiles as $f) {
-      if (endsWith($f,".tif")) {
-        $tifname = $f;
-      }
-      if (endsWith($f,".xyz")) {
-        $tiledir = $f;
-      }
+        if (endsWith($f,".tif")) {
+            $tifname = $f;
+        }
+        if (endsWith($f,".xyz")) {
+            $tiledir = $f;
+        }
+        if($f == "original") {
+            $hasoriginals = 1;
+            $originalfiles = array_diff(scandir($_R["maps"].$map."/original"), array('..', '.'));
+            foreach ($originalfiles as $o) {
+                $ext = end(explode(".",$o));
+		if ($ext == "map") {
+                    $originalmap = $o;
+                }
+		if (in_array($ext, array("png","bmp","jpg","jpeg","tif","tiff"))) {
+                    $originalimg = $o;
+                }
+            }
+        }
     }
 
     $img64 = str_replace(".tif",".64.png",$tifname);
@@ -50,6 +96,16 @@
 
     $tifflnk = $_R["maps"].$map."/".$tifname;
     $tiffdl = " <a href=\"". $tifflnk . "\">Download TIFF</a>";
+
+    if (strlen($originalmap) > 0) {
+        $omaplink = $_R["maps"].$map."/original/".$originalmap;
+        $tiffdl .= " | <a href=\"". $omaplink . "\">OZI map calibration</a>";
+    }
+    if (strlen($originalimg) > 0) {
+	$oimglink = $_R["maps"].$map."/original/".$originalimg;
+        $tiffdl .= " | <a href=\"". $oimglink . "\">Original image</a>";
+    }
+
 
     $infogen = 0;
 
@@ -102,12 +158,33 @@
 
     $tiffinfo = "<small>S: ${t_s}</small><br><small>P: ${t_p}</small><br><small>{$t_px} px/cm</small>";
 
-    $body .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$tiledir.'<br>'.$tiffdl.'</small></td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
-    $body .= "\n" . '<a href="maps.rm.php?uid='.$map.'" onclick="return confirm(\'Are you sure? Tiles will be still vissible in  layers.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n";
+    $tableBody .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$tiledir.'<br>'.$tiffdl.'</small></td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
+    $tableBody .= "\n" . '<a href="map.php#layers='.$name.'" class="btn btn-sm btn-info" style="margin-right:4px;">View layer</a>';
+    $tableBody .= "\n" . '<a href="maps.rm.php?uid='.$map.'" onclick="return confirm(\'Are you sure? Tiles will be still vissible in  layers.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n";
 
-    $body .= '</td>';
+    $tableBody .= '</td>';
   }
-  $body .= '</table>';
+  $tableBody .= '</table>';
+
+  // generate pagination
+  $paginationBody = "<nav aria-label=\"Map pages\"><ul class=\"pagination\">";
+  $totalPages = ceil($pos / 15);
+  for ($i = 1 ; $i <= $totalPages; $i++) {
+    $activecl = "";
+    if ($i == $page) {
+      $activecl = "active";
+    }
+    $paginationBody .= "<li class=\"page-item $activecl\"><a class=\"page-link\" href=\"?page=$i\">$i</a></li>";
+  }
+  $activecl = "";
+  if ($page == -1) {
+    $activecl = "active";
+  }
+  $paginationBody .= "<li class=\"page-item $activecl\"><a class=\"page-link\" href=\"?page=all\">All</a></li>";
+  $paginationBody .= "</ul></nav>";
+
+  $body .= $paginationBody;
+  $body .= $tableBody;
   $body .= '<div class="float-right"><a href="maps.add.php" class="btn btn-info">Add map</a></div>';
 
   $contents["tab"] = "Maps";
