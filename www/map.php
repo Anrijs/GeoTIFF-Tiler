@@ -86,64 +86,62 @@ var map_osm = L.tileLayer('//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 <?php
     include "config/config.php";
+    include "lib/tifftools.php";
 
-    function endsWith($haystack, $needle) {
-      $length = strlen($needle);
-
-      return $length === 0 ||
-      (substr($haystack, -$length) === $needle);
-    }
 
     $moverlays = array();
-    $maps = array_diff(scandir($_R["maps"]), array('..', '.'));
-    foreach ($maps as $l) {
-      if(!is_dir($_R["maps"] . $l)) {
-        continue;
-      }
-      $name = file_get_contents($_R["maps"] . $l . "/name");
-      $ol = array();
-      $ol["name"] = trim(preg_replace('/\s\s+/', ' ', $name));
-      $ol["id"] = $l;
-      $moverlays[] = $ol;
+    
+    if (isset($_GET["map"])) {
+      // find map and enable overlay
+      $mapid = $_GET["map"];
+      $maps = array_diff(scandir($_R["maps"]), array('..', '.'));
+      foreach ($maps as $l) {
+        if(!is_dir($_R["maps"] . $l)) {
+          continue;
+        }
+        if ($l == $mapid) {
+          $map = getMapInfo($_R["maps"] . $mapid);
 
-      // get tiledir
-      $tiledir = "";
-
-      $dirfiles = array_diff(scandir($_R["maps"].$l), array('..', '.'));
-      foreach ($dirfiles as $f) {
-        if (endsWith($f,".xyz")) {
-          $tiledir = $f;
+          $tiledir = $map["tiledir"];
+          if (strlen($tiledir) < 1) {
+            $tiledir = "original/" . $map["original"]["tiledir"];
+          }
+          echo "var map_" . $l . " =  L.tileLayer('/maps/" . $l . "/" . $tiledir . "/{z}/{x}/{y}.png', {\n";
+          echo "attribution: '<a href=\"https://github.com/Anrijs/GeoTIFF-Tiler\">GeoTIFF Tiler</a>',\n";
+          echo "  maxZoom: 22,\n";
+          echo "  maxNativeZoom: 22,\n";
+          echo "  detectRetina: false,\n";
+          echo "});\n";
+          $moverlays[] = array("id" => $l, "name" => $map["name"]);
           break;
         }
       }
+  }
 
-      echo "var map_" . $l . " =  L.tileLayer('/" . $_R["maps"] . $l . "/" . $tiledir . "/{z}/{x}/{y}.png', {\n";
-      echo "attribution: '<a href=\"https://github.com/Anrijs/GeoTIFF-Tiler\">GeoTIFF Tiler</a>',\n";
-      echo "  maxZoom: 22,\n";
-      echo "  maxNativeZoom: 22,\n";
-      echo "  detectRetina: false,\n";
-      echo "});\n";
+  $lyrid = isset($_GET["layer"]) ? $_GET["layer"] : FALSE;
+  $overlays = array();
+  $layers = array_diff(scandir($_R["layers"]), array('..', '.'));
+  foreach ($layers as $l) {
+    if(!is_dir($_R["layers"] . $l)) {
+    	continue;
+    }
+    $name = file_get_contents($_R["layers"] . $l . "/name");
+    $ol = array();
+    $ol["name"] = trim(preg_replace('/\s\s+/', ' ', $name));
+    $ol["id"] = $l;
+    $overlays[] = $ol;
+
+    if ($lyrid == $l) {
+      $moverlays[] = $ol;
     }
 
-    $overlays = array();
-    $layers = array_diff(scandir($_R["layers"]), array('..', '.'));
-    foreach ($layers as $l) {
-      if(!is_dir($_R["layers"] . $l)) {
-      	continue;
-      }
-      $name = file_get_contents($_R["layers"] . $l . "/name");
-      $ol = array();
-      $ol["name"] = trim(preg_replace('/\s\s+/', ' ', $name));
-      $ol["id"] = $l;
-      $overlays[] = $ol;
-
-      echo "var map_" . $l . " =  L.tileLayer('/" . $_R["layers"] . $l . "/{z}/{x}/{y}.png', {\n";
-      echo "attribution: '<a href=\"https://github.com/Anrijs/GeoTIFF-Tiler\">GeoTIFF Tiler</a>',\n";
-      echo "  maxZoom: 22,\n";
-      echo "  maxNativeZoom: 22,\n";
-      echo "  detectRetina: false,\n";
-      echo "});\n";
-    }
+    echo "var map_" . $l . " =  L.tileLayer('/" . $_R["layers"] . $l . "/{z}/{x}/{y}.png', {\n";
+    echo "attribution: '<a href=\"https://github.com/Anrijs/GeoTIFF-Tiler\">GeoTIFF Tiler</a>',\n";
+    echo "  maxZoom: 22,\n";
+    echo "  maxNativeZoom: 22,\n";
+    echo "  detectRetina: false,\n";
+    echo "});\n";
+  }
 ?>
 
 var baseMaps = {
@@ -157,16 +155,23 @@ var overlayMaps = {
         }
 
         foreach (array_reverse($moverlays) as $ol) {
-                echo '"'.$ol["name"].'": ' . "map_" . $ol['id'] . ",\n";
+          echo '"'.$ol["name"].'": ' . "map_" . $ol['id'] . ",\n";
         }
         ?>
 };
+
 
     var map = L.map('map', {maxZoom:22}).setView([getUrlLatitude(), getUrlLongitude()], getUrlZoom());
 
     baseMaps["OSM"].addTo(map);
     
     L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+    <?php 
+    foreach ($moverlays as $ol) {
+      echo "map_" . $ol['id'] . ".addTo(map);\n";
+    }
+    ?>
     
     var measureControl = L.control.measure(
       {
@@ -299,17 +304,6 @@ var overlayMaps = {
     var marker;
     if(getParam("marker")) {
       marker = L.marker([getUrlMarkerLatitude(), getUrlMarkerLongitude()]).addTo(map);
-    }
-
-    if(getParam("layers")) {
-      var layers =  getParam("layers").split(";");
-      for(var i=0;i<layers.length;i++) {
-        var name = layers[i];
-        if(name in overlayMaps) {
-          overlayMaps[name].addTo(map);
-          overlays.push(name);
-        }
-      }
     }
 
     Array.prototype.remove = function() {

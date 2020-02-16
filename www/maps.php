@@ -12,13 +12,6 @@
     fclose($infofile);
   }
 
-  function endsWith($haystack, $needle) {
-    $length = strlen($needle);
-
-    return $length === 0 ||
-    (substr($haystack, -$length) === $needle);
-  }
-
   $page = 1;
   if (isset($_GET["page"])) {
     $page = $_GET["page"];
@@ -59,53 +52,44 @@
     $fname = $map;
     $fsize = dirsize($_R["maps"].$map);
 
-    $tifname = "";
-    $tiledir = "";
+    $mapInfo = getMapInfo($_R["maps"].$map);
 
-    $hasoriginals = 0;
-    $originalimg = "";
-    $originalmap = "";
+    $fname = $mapInfo["name"];
+    $tiledir = $mapInfo["tiledir"];
 
-    $dirfiles = array_diff(scandir($_R["maps"].$map), array('..', '.'));
-    foreach ($dirfiles as $f) {
-        if (endsWith($f,".tif")) {
-            $tifname = $f;
-        }
-        if (endsWith($f,".xyz")) {
-            $tiledir = $f;
-        }
-        if($f == "original") {
-            $hasoriginals = 1;
-            $originalfiles = array_diff(scandir($_R["maps"].$map."/original"), array('..', '.'));
-            foreach ($originalfiles as $o) {
-                $ext = end(explode(".",$o));
-		if ($ext == "map") {
-                    $originalmap = $o;
-                }
-		if (in_array($ext, array("png","bmp","jpg","jpeg","tif","tiff"))) {
-                    $originalimg = $o;
-                }
-            }
-        }
-    }
+    $hastif = $mapInfo["tif"]["available"];
+    $tifname = $mapInfo["tif"]["image"];
 
-    $img64 = str_replace(".tif",".64.png",$tifname);
-    $img512 = str_replace(".tif",".512.png",$tifname);
+    $hasoriginal = $mapInfo["original"]["available"];
+    $originalimg = $mapInfo["original"]["image"];
+    $originalmap = $mapInfo["original"]["map"];
+    $originaltiledir = $mapInfo["original"]["tiledir"];
+
+    $img64 = $fname . ".64.png";
+    $img512 = $fname . ".512.png";
 
     $img64a = '<a href="' . $_R["maps"].$map."/".$img512.'"><img style="height:64px;" src="'.$_R["maps"].$map."/".$img64.'"></a>';
 
-    $tifflnk = $_R["maps"].$map."/".$tifname;
-    $tiffdl = " <a href=\"". $tifflnk . "\">Download TIFF</a>";
+    $lnks = array();
+
+    $imgname = $originalimg;
+    
+    if ($hastif) {
+        $tifflnk = $_R["maps"].$map."/".$tifname;
+        $lnks[] = " <a href=\"". $tifflnk . "\">Download TIFF</a>";
+        $imgname = $tifname;
+    }
 
     if (strlen($originalmap) > 0) {
         $omaplink = $_R["maps"].$map."/original/".$originalmap;
-        $tiffdl .= " | <a href=\"". $omaplink . "\">OZI map calibration</a>";
+        $lnks[] = "<a href=\"". $omaplink . "\">OZI map calibration</a>";
     }
     if (strlen($originalimg) > 0) {
-	$oimglink = $_R["maps"].$map."/original/".$originalimg;
-        $tiffdl .= " | <a href=\"". $oimglink . "\">Original image</a>";
+	      $oimglink = $_R["maps"].$map."/original/".$originalimg;
+        $lnks[] = "<a href=\"". $oimglink . "\">Original image</a>";
     }
 
+    $tiffdl = implode(" | ", $lnks);
 
     $infogen = 0;
 
@@ -114,52 +98,57 @@
     if ($infook) {
         $tiff_info = explode(",",file_get_contents($infofile));
         if (sizeof($tiff_info) < 4) {
-		$infook = 0;
-                $infogen++;
-	}
+          $infook = 0;
+          $infogen++;
+        }
     }
 
-    if (!$infook) {
-       $infogen++;
-      // generate tiff info
+    if ($hastif) {
+      if (!$infook) {
+        $infogen++;
+        // generate tiff info
 
-      // GeoTIFF info
-      $tiff_info = getGdalInfo($_R["maps"] . $map . "/" . $tifname);
+        // GeoTIFF info
+        $tiff_info = getGdalInfo($_R["maps"] . $map . "/" . $tifname);
 
-      $tiff_info = array($tiff_info["p"], $tiff_info["s"], $tiff_info["px"][0], $tiff_info["px"][1]);
+        $tiff_info = array($tiff_info["p"], $tiff_info["s"], $tiff_info["px"][0], $tiff_info["px"][1]);
 
-      $info = fopen($infofile, "w");
-      fwrite($info, implode(",", $tiff_info)); // perimeter, area, px size
-      fclose($info);
+        $info = fopen($infofile, "w");
+        fwrite($info, implode(",", $tiff_info)); // perimeter, area, px size
+        fclose($info);
+      }
 
-    }
+      if (sizeof($tiff_info) < 3) {
+        // regenerate
+      }
 
-    if (sizeof($tiff_info) < 3) {
-	// regenerate
-    }
+      $t_p = (round($tiff_info[0])) . "m";
+      $t_s = (round($tiff_info[1]));
+      $t_px = (round(($tiff_info[2]+$tiff_info[3])*50)/100);
 
-    $t_p = (round($tiff_info[0])) . "m";
-    $t_s = (round($tiff_info[1]));
-    $t_px = (round(($tiff_info[2]+$tiff_info[3])*50)/100);
-
-    if ($t_s > 1000000) {
-      $t_s = (round($t_s/10000)/100) . "km2";
-    } else if ($t_s > 10000) {
-      $t_s = (round($t_s/100)/100) . "ha";
-    } else {
-      $t_s = $t_s . "m2";
+      if ($t_s > 1000000) {
+        $t_s = (round($t_s/10000)/100) . "km2";
+      } else if ($t_s > 10000) {
+        $t_s = (round($t_s/100)/100) . "ha";
+      } else {
+        $t_s = $t_s . "m2";
+      }
     }
 
     if (strlen($tiledir) < 1) {
-	$tiledir = $fname . " (not sliced)";
+      if (strlen($originaltiledir) < 1) {
+        $tiledir = $map . "/" . $fname . " (not sliced)";
+      } else {
+        $tiledir = $map . "/original/" . $originaltiledir . "/{z}/{x}/{y}.png";
+      }
     } else {
-        $tiledir = $fname . "/" . $tiledir . "/{z}/{x}/{y}.png";
+      $tiledir = $map . "/" . $tiledir . "/{z}/{x}/{y}.png";
     }
 
     $tiffinfo = "<small>S: ${t_s}</small><br><small>P: ${t_p}</small><br><small>{$t_px} px/cm</small>";
 
-    $tableBody .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$tifname."<br><small>".$tiledir.'<br>'.$tiffdl.'</small></td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
-    $tableBody .= "\n" . '<a href="map.php#layers='.$name.'" class="btn btn-sm btn-info" style="margin-right:4px;">View layer</a>';
+    $tableBody .= '<tr><td>'.$pos++.'</td><td>'.$img64a.$name.'</td><td>'.$imgname."<br><small>maps/".$tiledir.'<br>'.$tiffdl.'</small></td><td>2018-07-05 09:10:12</td><td>'.human_filesize($fsize).'</td><td>'.$tiffinfo.'</td><td><a href="maps.add2layer.php?uid='.$map.'" class="btn btn-sm btn-success">Add to layer</a>';
+    $tableBody .= "\n" . '<a href="map.php?map='.$map.'" class="btn btn-sm btn-info" style="margin-right:4px;">View layer</a>';
     $tableBody .= "\n" . '<a href="maps.rm.php?uid='.$map.'" onclick="return confirm(\'Are you sure? Tiles will be still vissible in  layers.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n";
 
     $tableBody .= '</td>';

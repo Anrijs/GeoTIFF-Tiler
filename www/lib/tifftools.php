@@ -19,6 +19,11 @@
         return ((substr($string, 0, strlen($prefix)) == $prefix) ? true : false);
     }
 
+    function endsWith($haystack, $needle) {
+        $length = strlen($needle);
+        return $length === 0 || (substr($haystack, -$length) === $needle);
+    }
+
     function getLatLon($info) {
         $pt = explode("(", $info)[2];
         $pt = explode(")", $pt)[0];
@@ -85,6 +90,69 @@
         return array($x, $y);
     }
 
+    function getMapInfo($mapdir) {
+        $tiledir = "";
+
+        $hastif = FALSE;
+        $tifname = "";
+    
+        $hasoriginals = FALSE;
+        $originalmap = "";
+        $originalimg = "";
+        
+        $alttiledir = "";
+    
+        $dirfiles = array_diff(scandir($mapdir), array('..', '.'));
+        foreach ($dirfiles as $f) {
+            if (endsWith($f,".tif")) {
+                $tifname = $f;
+                $hastif = TRUE;
+            }
+            if (endsWith($f,".xyz")) {
+                $tiledir = $f;
+            }
+            if($f == "original") {
+                $hasoriginals = TRUE;
+                $originalfiles = array_diff(scandir($mapdir."/original"), array('..', '.'));
+                foreach ($originalfiles as $o) {
+                    if (endsWith($o,".xyz")) {
+                        $alttiledir = $o;
+                    }
+
+                    $ext = end(explode(".",$o));
+                        if ($ext == "map") {
+                        $originalmap = $o;
+                    }
+                    if (in_array($ext, array("png","bmp","jpg","jpeg","tif","tiff"))) {
+                        $originalimg = $o;
+                    }
+                }
+            }
+        }
+
+        if (strlen($tifname)) {
+            $name = $tifname;
+        } else {
+            $name = $originalmap;
+        }
+
+        $name = preg_replace('/\\.[^.\\s]{3,4}$/', '', $name);
+        
+        return array(
+            "name" => $name,
+            "tiledir" => $tiledir,
+            "tif" => array(
+                "available" => $hastif,
+                "image" => $tifname
+            ),
+            "original" => array(
+                "available" => $hasoriginals,
+                "map" => $originalmap,
+                "image" => $originalimg,
+                "tiledir" => $alttiledir
+            )
+        );
+    }
 
     function getGdalInfo($filepath) {
         $cmd = "gdalinfo " . $filepath;
@@ -143,7 +211,7 @@
 
         $area2 = sqrt(abs($s*($s-$a)*($s-$d)*($s-$c)));
 
-	$temp = $s*($s-$a)*($s-$b)*($s-$c);
+	    $temp = $s*($s-$a)*($s-$b)*($s-$c);
 
         $area = $area1 + $area2;
         $p = $a + $b + $c + $d;
