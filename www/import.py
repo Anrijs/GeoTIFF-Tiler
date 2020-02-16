@@ -46,8 +46,7 @@ def flog(msg):
 def plog(msg):
     global printlog
     flog(msg)
-    if printlog:
-        print msg
+
 
 def redisSetStatus(redis,redis_procid,redis_proc,ms):
     if(redis):
@@ -167,10 +166,14 @@ def main(argv):
     else:
         flog("Zoom values not specified. Using default: \"" + zooms + bcolors.ENDC)
 
+    ext = ".tif"
+    if "-mapext" in argv:
+        ext = ".map"
+
     # scan tifs
     tiff_list = []
     for file in os.listdir(tiff_dir):
-        if file.endswith(".tif"):
+        if file.endswith(ext):
             tiff_list.append([os.path.join(root_dir, tiff_dir, file),file])
 
     redisSetStatus(redis,redis_procid,redis_proc,"Started (0/"+str(len(tiff_list))+")")
@@ -180,11 +183,12 @@ def main(argv):
     for tiff in tiff_list:
         redisSetStatus(redis,redis_procid,redis_proc,"Cutting tiles... ("+str(tiffnum)+"/"+str(len(tiff_list))+")")
 
-        importdir = rreplace(tiff[0], ".tif", ".xyz", 1)
-        importname = rreplace(tiff[1], ".tif", ".xyz", 1)
+        importdir = rreplace(tiff[0], ext, ".xyz", 1)
+        importname = rreplace(tiff[1], ext, ".xyz", 1)
 
+        flog( bcolors.HEADER + bcolors.BOLD + bcolors.UNDERLINE + "Cutting tiles... ("+str(tiffnum)+"/"+str(len(tiff_list))+")" + bcolors.ENDC)
         flog( "Cutting tiles... " + tiff[0])
-        sliced_tile_dir = tiff[0].replace(".tif",".xyz")
+        sliced_tile_dir = tiff[0].replace(ext,".xyz")
         tiledir_ok = os.path.isdir(sliced_tile_dir)
         if tiledir_ok:
             tiledir_ok = False
@@ -206,7 +210,7 @@ def main(argv):
                                 break
 
         if not (tiledir_ok):
-            os.system(tlerstools + 'tiler.py --cut --zoom=' + zooms + ' --release '+tiff[0]+' -p xyz')
+            os.system(tlerstools + 'tiler.py --cut --zoom=' + zooms + ' --release "'+tiff[0]+'" -p xyz')
             flog( "Tiles sliced")
         else:
             flog( "Tiles already sliced. Skipping... " + os.path.join(root_dir,tiff_dir,importname))
@@ -260,7 +264,7 @@ def main(argv):
                                 tmp_path = os.path.join(root_dir,"tmp","temp.png")
                                 plog(" merge " + dstpath + " and " + newpath)
                                 #flog("cmd: " + 'convert -composite -background none ' + dstpath + ' ' + newpath + ' ' + tmp_path)
-                                os.system('convert -composite -background none ' + dstpath + ' ' + newpath + ' ' + tmp_path)
+                                os.system('convert -composite -background none "' + dstpath + '" "' + newpath + '" "' + tmp_path + '"')
                                 plog(" moving " + tmp_path)
                                 move(tmp_path, dstpath, False) # This one is temp file. Only move.
                                 tmerge += 1
