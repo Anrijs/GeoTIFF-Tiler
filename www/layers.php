@@ -15,7 +15,13 @@
 
     $namehtml = $name . '<br><small class="light-text">'.$layer.'/{z}/{x}/{y}.png</small>';
 
-    $body .= '<tr><td>'.$no++.'</td><td>'.$namehtml.'</td><td>'.$zoom.'</td><td>'.(sizeof($maps)-1).'</td><td><a href="map.php#layers='.$name.'" class="btn btn-sm btn-info" style="margin-right:4px;">View layer</a><a href="#" class="btn btn-sm btn-danger">Delete</a></td>';
+    $body .= '<tr><td>'.$no++.'</td>';
+    $body .= '<td>'.$namehtml.'</td>';
+    $body .= '<td>'.$zoom.'</td>';
+    $body .= '<td>'.(sizeof($maps)-1).'</td>';
+    $body .= '<td>';
+    $body .= '<a href="map.php?layer='.$layer.'" class="btn btn-sm btn-info" style="margin-right:4px;">View layer</a>';
+    $body .= '<a href="layers.rm.php?uid='.$layer.'" onclick="return confirm(\'Are you sure? Used maps will still vissible in maps page.\nMap '.$name.' will be deleted forever.\')" class="btn btn-sm btn-danger">Delete</a>'."\n";
   }
   $body .= '</table>';
   $body .= '<div class="float-right"><a href="layers.add.php" class="btn btn-info">Add layer</a></div>';
