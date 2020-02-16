@@ -32,24 +32,6 @@ $mapFname = basename($_FILES["mapFileToUpload"]["name"]);
 $imgFname = basename($_FILES["imgFileToUpload"]["name"]);
 $tifFname = str_replace(".map", ".tif", $mapFname);
 
-$tmp_dir = uniqid();
-while(file_exists($_R["temp"] . $tmp_dir)) {
-  $tmp_dir = uniqid();
-}
-
-$tmp_dir = $_R["temp"] . $tmp_dir . "/";
-
-if(mkdir($tmp_dir) == 0) {
-    die("Failed to upload map. Temp directory (".$_R["temp"].") not writeable.");
-}
-
-
-$mapPath = $tmp_dir . $mapFname;
-$imgPath = $tmp_dir . $imgFname;
-
-move_uploaded_file($_FILES["mapFileToUpload"]["tmp_name"], $mapPath);
-move_uploaded_file($_FILES["imgFileToUpload"]["tmp_name"], $imgPath);
-
 // TODO:
 // check if image is image
 // check if map is map
@@ -60,50 +42,65 @@ while(file_exists($_R["maps"] . $dir)) {
   $dir = uniqid();
 }
 
+// make map directory
 $target_dir = $_R["maps"] . $dir . "/";
+if(mkdir($target_dir) == 0) {
+    die("Failed to upload map. Maps directory (".$_R["maps"].") not writeable.");
+    return;
+}
+
+// make originals dir
+$original_dir = $target_dir . "original/";
+if(mkdir($original_dir) == 0) {
+    die("Failed to upload map. Map directory (".$target_dir.") not writeable.");
+    return;
+}
+
+$mapPath = $original_dir . $mapFname;
+$imgPath = $original_dir . $imgFname;
+
+move_uploaded_file($_FILES["mapFileToUpload"]["tmp_name"], $mapPath);
+move_uploaded_file($_FILES["imgFileToUpload"]["tmp_name"], $imgPath);
 
 $mapname = $_POST['mapName'];
+$mktif = isset($_POST['makeTiff']);
 
 if (strlen(trim($mapname)) == 0) {
     $mapname = $tifFname;
 }
 
-// make map directory
-if(mkdir($target_dir) == 0) {
-    echo "Failed to upload map. Maps directory (".$_R["maps"].") not writeable.";
-}
-
 $target_file = $target_dir . $tifFname;
-$cmd = "gdal_translate -of GTiff " . $mapPath . " " . $target_file;
-shell_exec($cmd . ' > /dev/null 2>/dev/null &');
-
-// TODO:
-// run as subprocess
-sleep(2);
-
-deleteDir($tmp_dir);
 
 $namefile = fopen($target_dir . "name", "w");
 fwrite($namefile, $mapname);
 fclose($namefile);
 
 # make png preview
-$target_file_512_png = str_replace(".tif", ".512.png", $target_file);
-$target_file_64_png = str_replace(".tif", ".64.png", $target_file);
-$cmd = "convert " . $target_file . " -resize \"64^>\" " . $target_file_64_png;
-shell_exec($cmd);
-$cmd = "convert " . $target_file . " -resize \"512^>\" " . $target_file_512_png;
+$target_file_512_png = str_replace(".map", ".512.png", $mapFname);
+$target_file_64_png = str_replace(".map", ".64.png", $mapFname);
+$cmd = "convert \"" . $imgPath . "\" -resize \"64^>\" \"" . $target_dir . $target_file_64_png . "\"";
+$cmd .= " && convert \"" . $imgPath . "\" -resize \"512^>\" \"" . $target_dir . $target_file_512_png . "\"";
 shell_exec($cmd . ' > /dev/null 2>/dev/null &');
 
-// GeoTIFF info
-$tiff_info = getGdalInfo($target_file);
-
 $coordfile = fopen($target_dir . "coord", "w");
-fwrite($coordfile, $tiff_info["center"][0] . "," . $tiff_info["center"][1]);
-fclose($coordfile);
-
 $infofile = fopen($target_dir . "info", "w");
-fwrite($infofile, $tiff_info["p"] . "," . $tiff_info["s"]); // preimeter, area
+
+
+if ($mktif) {
+    $cmd = "gdal_translate -of GTiff " . $mapPath . " " . $target_file;
+    shell_exec($cmd . ' > /dev/null 2>/dev/null &');
+
+    // TODO:
+    // run as subprocess
+    sleep(2);
+
+    // GeoTIFF info
+    $tiff_info = getGdalInfo($target_file);
+    fwrite($coordfile, $tiff_info["center"][0] . "," . $tiff_info["center"][1]);
+    fwrite($infofile, $tiff_info["p"] . "," . $tiff_info["s"]); // preimeter, area
+}
+
+fclose($coordfile);
 fclose($infofile);
 
 header("Location: maps.php");

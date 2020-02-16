@@ -17,6 +17,12 @@
   $body .= '<input type="file" name="mapFileToUpload" id="mapFileToUpload"><br>';
   $body .= 'Select map image to upload:<br>';
   $body .= '<input type="file" name="imgFileToUpload" id="imgFileToUpload"><br>';
+
+  $body .= '<br><div class="form-check">';
+  $body .= '<input type="checkbox" class="form-check-input" name="makeTiff" id="makeTiff" checked>';
+  $body .= '<label class="form-check-label" for="makeTiff">Convert to GeoTIFF</label>';
+  $body .= '</div><br>';
+
   $body .= '<input class="btn btn-info" type="submit" value="Upload" name="submit">';
   $body .= '</form>';
   
