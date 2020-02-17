@@ -37,7 +37,7 @@ Pull image `docker pull anrijs/geotiff-tiler`
 Run it:
 ``` bash
 docker run -d --name=geotiff-tiler \
-    -p <port>:80
+    -p <port>:80 \
     -v </path/to/maps>:/var/www/html/maps \
     -v </path/to/layers>:/var/www/html/layers \
     -v </path/to/temp>:/var/www/html/tmp \
@@ -48,7 +48,7 @@ Build image: `docker build . -t geotiff-tiler`
 Run it:
 ``` bash
 docker run \
-	-p <port>:80
+    -p <port>:80 \
     -v </path/to/maps>:/var/www/html/maps \
     -v </path/to/layers>:/var/www/html/layers \
     -v </path/to/temp>:/var/www/html/tmp \
