@@ -125,7 +125,8 @@ var map_osm = L.tileLayer('//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     if(!is_dir($_R["layers"] . $l)) {
     	continue;
     }
-    $name = file_get_contents($_R["layers"] . $l . "/name");
+    $name = $l;
+    if (file_exists($_R["layers"] . $l . "/name")) $name = file_get_contents($_R["layers"] . $l . "/name");
     $ol = array();
     $ol["name"] = trim(preg_replace('/\s\s+/', ' ', $name));
     $ol["id"] = $l;

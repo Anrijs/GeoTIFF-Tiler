@@ -48,6 +48,11 @@
       continue;
     }
 
+    $name = $map;
+    $fsize = 0;
+
+    if (!file_exists($_R["maps"] . $map . "/name")) continue;
+
     $name = file_get_contents($_R["maps"] . $map . "/name");
     $fname = $map;
     $fsize = dirsize($_R["maps"].$map);

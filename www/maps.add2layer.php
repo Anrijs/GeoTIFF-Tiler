@@ -28,9 +28,15 @@
     $body .= "<h3>No valid map images found</h3>";
   } else {
     foreach ($layersf as $layer) {
-      $name = file_get_contents($_R["layers"] . $layer . "/name");
-      $zoom = file_get_contents($_R["layers"] . $layer . "/zoom");
-      $maps = explode(";",file_get_contents($_R["layers"] . $layer . "/maps"));
+      if (!is_dir($_R["layers"] . $layer)) continue;
+
+      $name = "";
+      $zoom = "";
+      $maps = array();
+
+      if (file_exists($_R["layers"] . $layer . "/name")) $name = file_get_contents($_R["layers"] . $layer . "/name");
+      if (file_exists($_R["layers"] . $layer . "/zoom")) $zoom = file_get_contents($_R["layers"] . $layer . "/zoom");
+      if (file_exists($_R["layers"] . $layer . "/maps")) $maps = explode(";",file_get_contents($_R["layers"] . $layer . "/maps"));
 
       $body .= '<form action="maps.layer.process.php" method="post">';
       $body .= '<input type="hidden" name="luid" id="luid" value="'.$layer.'">';
