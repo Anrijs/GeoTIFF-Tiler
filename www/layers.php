@@ -9,9 +9,15 @@
   $no = 1;
   $body .= '<table class="table table-striped table-sm"><tr><th>#</th><th>Name</th><th>Zoom</th><td>Maps</td><th></th></tr>';
   foreach ($layers as $layer) {
-    $name = file_get_contents($_R["layers"] . $layer . "/name");
-    $zoom = file_get_contents($_R["layers"] . $layer . "/zoom");
-    $maps = explode(";",file_get_contents($_R["layers"] . $layer . "/maps"));
+    if (!is_dir($_R["layers"] . $layer)) continue;
+
+    $name = $layer;
+    $zoom = "";
+    $maps = array();
+
+    if (file_exists($_R["layers"] . $layer . "/name")) $name = file_get_contents($_R["layers"] . $layer . "/name");
+    if (file_exists($_R["layers"] . $layer . "/zoom")) $zoom = file_get_contents($_R["layers"] . $layer . "/zoom");
+    if (file_exists($_R["layers"] . $layer . "/maps")) $maps = explode(";",file_get_contents($_R["layers"] . $layer . "/maps"));
 
     $namehtml = $name . '<br><small class="light-text">'.$layer.'/{z}/{x}/{y}.png</small>';
 
