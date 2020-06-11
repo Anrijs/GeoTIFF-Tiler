@@ -94,6 +94,9 @@ def main(argv):
     if "-z" in argv:
         minargs += 1
 
+    if "-list" in argv:
+        minargs += 1
+
     if(len(argv) < minargs):
         flog( bcolors.FAIL + "Error: input file not specified" + bcolors.ENDC)
         flog( "Usage: python import.py tiff_dir tile_dir [options] [redis name folder]" + bcolors.ENDC)
@@ -102,6 +105,7 @@ def main(argv):
         flog( "  -z         Zoom levels (-z 10,11,12,15)" + bcolors.ENDC)
         flog( "  -keep      Don't remove tiles in tiff directory" + bcolors.ENDC)
         flog( "  -noimport  Don't import tiles to map layer." + bcolors.ENDC)
+        flog( "  -list      Import files from list." + bcolors.ENDC)
         flog( "             tile_dir still must be specified, but it can be non-existing." + bcolors.ENDC)
         return
 
@@ -142,6 +146,23 @@ def main(argv):
             while (redisGetCurProcId(redis) != "proc:"+redis_procid):
                 time.sleep(3)
 
+    flist = []
+    if "-list" in argv:
+        idx = argv.index("-list")
+        if (len(argv) < idx+2):
+            flog( bcolors.FAIL + "Error: list argument value invalid." + bcolors.ENDC)
+            return
+        fname = argv[idx+1]
+        f = open(fname, "r")
+        for x in f:
+            ln = x.strip()
+            if len(ln) < 1 or ln[0] == "#":
+                continue # skip comments and empty lines
+            flist.append(ln)
+        if len(flist) == 0:
+            flog(bcolors.ERROR + "Warning: list file is empty. Nothing to do." + bcolors.ENDC)
+            return         
+
     zooms = "8,9,10,11,12,13,14,15,16,17,18,19,20,21"
 
     if "-z" in argv:
@@ -176,6 +197,18 @@ def main(argv):
         if file.endswith(ext):
             tiff_list.append([os.path.join(root_dir, tiff_dir, file),file])
 
+    if len(flist) > 0:
+        temp = []
+        for f in flist:
+            found = None
+            for tif in tiff_list:
+                if tif[1] == f:
+                    found = tif
+                    temp.append(tif)
+                    break
+            if found == None:
+                flog( bcolors.WARNING + "Warning: File \"" + f + "\" not found. Will skip..." + bcolors.ENDC)
+        tiff_list = temp
     redisSetStatus(redis,redis_procid,redis_proc,"Started (0/"+str(len(tiff_list))+")")
 
     tiffnum = 1
@@ -210,7 +243,7 @@ def main(argv):
                                 break
 
         if not (tiledir_ok):
-            os.system(tlerstools + 'tiler.py --cut --zoom=' + zooms + ' --release "'+tiff[0]+'" -p xyz')
+            os.system(tlerstools + 'tiler.py --zoom=' + zooms + ' --release "'+tiff[0]+'" -p xyz')
             flog( "Tiles sliced")
         else:
             flog( "Tiles already sliced. Skipping... " + os.path.join(root_dir,tiff_dir,importname))
