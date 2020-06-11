@@ -154,7 +154,13 @@
         );
     }
 
-    function getGdalInfo($filepath) {
+    function getGdalInfo($filepath, $json=FALSE) {
+        if ($json) {
+            $cmd = "gdalinfo -json " . $filepath;
+            $tiff_info = shell_exec($cmd . " 2>&1; echo $?");
+            return substr($tiff_info, 0, -2);
+        }
+
         $cmd = "gdalinfo " . $filepath;
         $tiff_info = shell_exec($cmd . " 2>&1; echo $?");
 
