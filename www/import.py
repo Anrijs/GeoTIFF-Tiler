@@ -7,6 +7,7 @@ import filecmp
 import shutil
 import time
 import traceback
+import threading
 
 class bcolors:
     HEADER = '\033[95m'
@@ -77,7 +78,7 @@ def main(argv):
     flog(bcolors.HEADER + bcolors.BOLD + bcolors.UNDERLINE + "Cut GeoTIFF tiles" + bcolors.ENDC)
     redis = False
     keepTiles = False
-    importTiles = True
+    doImportTiles = True
 
     tproc = 0
     tmerge = 0
@@ -102,11 +103,12 @@ def main(argv):
         flog( "Usage: python import.py tiff_dir tile_dir [options] [redis name folder]" + bcolors.ENDC)
         flog( "")
         flog( "Options:" + bcolors.ENDC)
-        flog( "  -z         Zoom levels (-z 10,11,12,15)" + bcolors.ENDC)
-        flog( "  -keep      Don't remove tiles in tiff directory" + bcolors.ENDC)
-        flog( "  -noimport  Don't import tiles to map layer." + bcolors.ENDC)
-        flog( "  -list      Import files from list." + bcolors.ENDC)
-        flog( "             tile_dir still must be specified, but it can be non-existing." + bcolors.ENDC)
+        flog( "  -z <levels>        Zoom levels (-z 10,11,12,15)" + bcolors.ENDC)
+        flog( "  -keep              Don't remove tiles in tiff directory" + bcolors.ENDC)
+        flog( "  -noimport          Don't import tiles to map layer." + bcolors.ENDC)
+        flog( "  -threads <count>   Run in multiple threads." + bcolors.ENDC)
+        flog( "  -list <file?       Import files from list." + bcolors.ENDC)
+        flog( "                     tile_dir still must be specified, but it can be non-existing." + bcolors.ENDC)
         return
 
     tiff_dir = argv[0]
@@ -116,7 +118,7 @@ def main(argv):
         keepTiles = True
 
     if "-noimport" in argv:
-        importTiles = False
+        doImportTiles = False
 
     if "-d" in argv:
         debuglog = True
@@ -187,6 +189,18 @@ def main(argv):
     else:
         flog("Zoom values not specified. Using default: \"" + zooms + bcolors.ENDC)
 
+    threadCount = 1
+    if "-threads" in argv:
+        idx = argv.index("-threads")
+        if (len(argv) < idx+2):
+            flog( bcolors.FAIL + "Error: threads argument value invalid." + bcolors.ENDC)
+            return
+        threadCount = int(argv[idx+1])
+
+        if (threadCount < 1):
+            flog("Invalid thread count. Using default: \"" + str(threadCount) + bcolors.ENDC)
+
+
     ext = ".tif"
     if "-mapext" in argv:
         ext = ".map"
@@ -211,15 +225,73 @@ def main(argv):
         tiff_list = temp
     redisSetStatus(redis,redis_procid,redis_proc,"Started (0/"+str(len(tiff_list))+")")
 
-    tiffnum = 1
+    threads = []
 
     for tiff in tiff_list:
-        redisSetStatus(redis,redis_procid,redis_proc,"Cutting tiles... ("+str(tiffnum)+"/"+str(len(tiff_list))+")")
+        while threading.active_count() > threadCount:
+            # wait
+            time.sleep(1)
+
+        th = CutThread(tiff, ext, root_dir, tile_dir, tiff_dir, zooms)
+        threads.append(th)
+        th.start()
+
+    for t in threads:
+        t.join()
+        flog( "Thread joined.")
+
+    for tiff in tiff_list:
+        if doImportTiles:
+            res = importTiles(tiff, ext, root_dir, tile_dir, tiff_dir, keepTiles)
+            tproc += res[0]
+            tnew += res[1]
+            tmerge += res[2]
+            tskip += res[3]
+        else:
+            flog( "Will not import.")
+
+    flog( "Thread Done.")
+
+    if doImportTiles:
+        flog( "Processed " + str(tproc) + " tiles")
+
+    if(redis):
+        redis_proc["active"] = "0"
+
+    if doImportTiles:
+        redisSetStatus(redis,redis_procid,redis_proc,"Done. " + str(tnew) + " new, " + str(tmerge) + " merged, " + str(tskip) + " skipped")
+        flog( " " + str(tnew) + " new")
+        flog( " " + str(tmerge) + " merged")
+        flog( " " + str(tskip) + " skipped")
+    else:
+        redisSetStatus(redis,redis_procid,redis_proc,"Done. Tiles sliced.")
+
+class CutThread (threading.Thread):
+    def __init__(self, tiff, ext, root_dir, tile_dir, tiff_dir, zooms):
+        threading.Thread.__init__(self)
+        self.tiff = tiff
+        self.ext = ext
+        self.root_dir = root_dir
+        self.tile_dir = tile_dir
+        self.tiff_dir = tiff_dir
+        self.zooms = zooms
+
+    def run(self):
+        print "Starting "
+        self.cutTiles(self.tiff, self.ext, self.root_dir, self.tile_dir, self.tiff_dir, self.zooms)
+        print "Exiting "
+
+    def cutTiles(self, tiff, ext, root_dir, tile_dir, tiff_dir, zooms):
+        global redis
+        global redis_procid
+        global redis_proc
+
+        redisSetStatus(redis,redis_procid,redis_proc,"Cutting tiles... ("+str(tiff[1])+")")
 
         importdir = rreplace(tiff[0], ext, ".xyz", 1)
         importname = rreplace(tiff[1], ext, ".xyz", 1)
 
-        flog( bcolors.HEADER + bcolors.BOLD + bcolors.UNDERLINE + "Cutting tiles... ("+str(tiffnum)+"/"+str(len(tiff_list))+")" + bcolors.ENDC)
+        flog( bcolors.HEADER + bcolors.BOLD + bcolors.UNDERLINE + "Cutting tiles... ("+tiff[1]+")" + bcolors.ENDC)
         flog( "Cutting tiles... " + tiff[0])
         sliced_tile_dir = tiff[0].replace(ext,".xyz")
         tiledir_ok = os.path.isdir(sliced_tile_dir)
@@ -249,89 +321,84 @@ def main(argv):
             flog( "Tiles already sliced. Skipping... " + os.path.join(root_dir,tiff_dir,importname))
 
 
-        if importTiles:
-            flog( bcolors.HEADER + bcolors.BOLD + bcolors.UNDERLINE + "Import tiles" + bcolors.ENDC)
-            redisSetStatus(redis,redis_procid,redis_proc,"Importing tiles... ("+str(tiffnum)+"/"+str(len(tiff_list))+")")
+def importTiles(tiff, ext, root_dir, tile_dir, tiff_dir, keepTiles):
+    global redis
+    global redis_procid
+    global redis_proc
 
-            # create zoom leval dirs
-            for x in xrange(0,24):
-                if not (os.path.isdir(os.path.join(root_dir, tile_dir, str(x)))):
-                    os.mkdir(os.path.join(root_dir, tile_dir, str(x)))
+    tproc = 0
+    tnew = 0
+    tmerge = 0
+    tskip = 0
 
-            full_tiff_dir = os.path.join(root_dir,tiff_dir)
-            full_tile_dir = os.path.join(root_dir,tile_dir)
+    importdir = rreplace(tiff[0], ext, ".xyz", 1)
+    importname = rreplace(tiff[1], ext, ".xyz", 1)
 
-            for idx, val in enumerate(os.walk(os.path.join(root_dir,tiff_dir,importname))):
-                if len(val[2]) > 0:
-                    for png in val[2]:
-                        if ".json" in png:
-                            continue
+    flog( bcolors.HEADER + bcolors.BOLD + bcolors.UNDERLINE + "Import tiles" + bcolors.ENDC)
+    redisSetStatus(redis,redis_procid,redis_proc,"Importing tiles... ("+tiff[1]+")")
+
+    # create zoom leval dirs
+    for x in xrange(0,24):
+        if not (os.path.isdir(os.path.join(root_dir, tile_dir, str(x)))):
+            os.mkdir(os.path.join(root_dir, tile_dir, str(x)))
+
+    full_tiff_dir = os.path.join(root_dir,tiff_dir)
+    full_tile_dir = os.path.join(root_dir,tile_dir)
+
+    for idx, val in enumerate(os.walk(os.path.join(root_dir,tiff_dir,importname))):
+        if len(val[2]) > 0:
+            for png in val[2]:
+                if ".json" in png:
+                    continue
     
-                        # png = x.png
-                        tproc += 1
-                        newpath = val[0] + "/" + png  # check file path  
-                        newdir  = val[0]
+                # png = x.png
+                tproc += 1
+                newpath = val[0] + "/" + png  # check file path  
+                newdir  = val[0]
 
-                        dlog("importdir: " + importdir) # source tile dir (root, before zooms)
-                        dlog("val[0]: " + val[0])       # source ../x/y/ dir full path
-                        dlog("npath: " + newpath)       # source full file path
+                dlog("importdir: " + importdir) # source tile dir (root, before zooms)
+                dlog("val[0]: " + val[0])       # source ../x/y/ dir full path
+                dlog("npath: " + newpath)       # source full file path
 
-                        pngpath = newpath.replace(importdir, "", 1) # relative path of png  ex: 15/15567/5574.png
+                pngpath = newpath.replace(importdir, "", 1) # relative path of png  ex: 15/15567/5574.png
 
-                        # newpath = /tiff/mapname.xyz/z/x/y.png
-                        # val[0] = mapname.xyz/z/y
+                # newpath = /tiff/mapname.xyz/z/x/y.png
+                # val[0] = mapname.xyz/z/y
 
-                        dstdirpath = val[0].replace(full_tiff_dir,full_tile_dir,1).replace(importname,"").replace("//","/") # dirpath = /z/y
+                dstdirpath = val[0].replace(full_tiff_dir,full_tile_dir,1).replace(importname,"").replace("//","/") # dirpath = /z/y
 
-                        dlog("dirpath: " + dstdirpath)
+                dlog("dirpath: " + dstdirpath)
 
-                        dstpath = newpath.replace(importdir,full_tile_dir,1).replace(importname,"").replace("//","/")
+                dstpath = newpath.replace(importdir,full_tile_dir,1).replace(importname,"").replace("//","/")
 
-                        if(os.path.isfile(dstpath)): 
-                            plog(bcolors.WARNING + pngpath + " exists" + bcolors.ENDC)
-                            plog("check files")
-                            if filecmp.cmp(dstpath, newpath):
-                                plog(dstpath + " and " + newpath + " seems equal... skip")
-                                tskip += 1
-                            else:
-                                tmp_path = os.path.join(root_dir,"tmp","temp.png")
-                                plog(" merge " + dstpath + " and " + newpath)
-                                #flog("cmd: " + 'convert -composite -background none ' + dstpath + ' ' + newpath + ' ' + tmp_path)
-                                os.system('convert -composite -background none "' + dstpath + '" "' + newpath + '" "' + tmp_path + '"')
-                                plog(" moving " + tmp_path)
-                                move(tmp_path, dstpath, False) # This one is temp file. Only move.
-                                tmerge += 1
-                            plog("remove " + newpath)
-                            if not keepTiles:
-                                os.remove(newpath)
-                        else :
-                            tnew += 1
-                            plog(bcolors.OKGREEN + dstpath + " is new " + bcolors.ENDC)
-                            if not os.path.isdir(dstdirpath):
-                                plog(bcolors.OKBLUE + val[0] + " new dir" + bcolors.ENDC)
-                                os.mkdir(dstdirpath)
-                            dlog("Mover: " + newpath + " -> " + dstpath)
-                            move(newpath,dstpath, keepTiles)
+                if(os.path.isfile(dstpath)): 
+                    plog(bcolors.WARNING + pngpath + " exists" + bcolors.ENDC)
+                    plog("check files")
+                    if filecmp.cmp(dstpath, newpath):
+                        plog(dstpath + " and " + newpath + " seems equal... skip")
+                        tskip += 1
+                    else:
+                        tmp_path = os.path.join(root_dir,"tmp","temp.png")
+                        plog(" merge " + dstpath + " and " + newpath)
+                        #flog("cmd: " + 'convert -composite -background none ' + dstpath + ' ' + newpath + ' ' + tmp_path)
+                        os.system('convert -composite -background none "' + dstpath + '" "' + newpath + '" "' + tmp_path + '"')
+                        plog(" moving " + tmp_path)
+                        move(tmp_path, dstpath, False) # This one is temp file. Only move.
+                        tmerge += 1
+                    plog("remove " + newpath)
+                    if not keepTiles:
+                        os.remove(newpath)
+                else :
+                    tnew += 1
+                    plog(bcolors.OKGREEN + dstpath + " is new " + bcolors.ENDC)
+                    if not os.path.isdir(dstdirpath):
+                        plog(bcolors.OKBLUE + val[0] + " new dir" + bcolors.ENDC)
+                        os.mkdir(dstdirpath)
+                    dlog("Mover: " + newpath + " -> " + dstpath)
+                    move(newpath,dstpath, keepTiles)
 
-            # dont do cleanup. shutil.rmtree(importdir)
-            tiffnum += 1
-        else:
-            flog( "Will not import.")
-
-
-    if importTiles:
-        flog( "Processed " + str(tproc) + " tiles")
-
-    if(redis):
-        redis_proc["active"] = "0"
-
-    if importTiles:
-        redisSetStatus(redis,redis_procid,redis_proc,"Done. " + str(tnew) + " new, " + str(tmerge) + " merged, " + str(tskip) + " skipped")
-        flog( " " + str(tnew) + " new")
-        flog( " " + str(tmerge) + " merged")
-        flog( " " + str(tskip) + " skipped")
-    else:
-        redisSetStatus(redis,redis_procid,redis_proc,"Done. Tiles sliced.")
+    # dont do cleanup. shutil.rmtree(importdir)
+    return [tproc,tnew,tmerge,tskip]
 
 def rreplace(s, old, new, occurrence):
     li = s.rsplit(old, occurrence)
