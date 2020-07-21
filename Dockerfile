@@ -29,6 +29,7 @@ WORKDIR /var/www/html/
 
 WORKDIR /app
 RUN git clone https://github.com/vss-devel/tilers-tools.git
+RUN git --git-dir=/app/tilers-tools/.git checkout f865a938dff8bf7207d65446f2a75feb1638d80e
 
 ADD /requirements.txt /app/requirements.txt
 
